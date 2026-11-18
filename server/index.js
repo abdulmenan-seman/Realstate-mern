@@ -7,6 +7,9 @@ import cors from "cors";
 import connectDB from "./config/db.js";
 import userRoute from "./routes/User.route.js";
 import authRoute from "./routes/auth.route.js";
+import propertyRoute from "./routes/property.route.js";
+import adminRoute from "./routes/admin.route.js";
+import favoriteRoute from "./routes/favorite.route.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,6 +63,9 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", authRoute);
 app.use("/api/users", userRoute);
 app.use("/api/user", userRoute); // Preserves backward compatibility
+app.use("/api/properties", propertyRoute);
+app.use("/api/admin", adminRoute);
+app.use("/api/favorites", favoriteRoute);
 
 // Catch-all for unhandled routes
 app.use((req, res, next) => {

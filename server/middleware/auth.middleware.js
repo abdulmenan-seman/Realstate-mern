@@ -39,3 +39,28 @@ export const verifyToken = async (req, res, next) => {
         next(error);
     }
 };
+
+export const optionalAuth = async (req, res, next) => {
+    try {
+        let token = req.cookies?.access_token;
+
+        if (!token && req.headers.authorization?.startsWith("Bearer ")) {
+            token = req.headers.authorization.split(" ")[1];
+        }
+
+        if (token) {
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                const user = await User.findById(decoded.id).select("-password");
+                if (user && user.accountStatus !== "suspended") {
+                    req.user = user;
+                }
+            } catch (err) {
+                // Ignore token decode errors for optional auth
+            }
+        }
+        next();
+    } catch (error) {
+        next();
+    }
+};
