@@ -28,7 +28,8 @@ export default function OAuth() {
                 body: JSON.stringify({
                     uid: result.user.uid,
                     email: result.user.email,
-                    name: result.user.displayName
+                    name: result.user.displayName,
+                    photo: result.user.photoURL
                 })
             });
 

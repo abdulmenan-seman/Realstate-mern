@@ -10,7 +10,9 @@ export const signup = async (req, res, next) => {
     const hashedPassword = await bcrypt.hash(password, 10);
    const newUser = new User({
     username,
-    email, password: hashedPassword
+    email, 
+    password: hashedPassword,
+    avatar: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png"
    });
     try {
         await newUser.save();
@@ -59,7 +61,8 @@ export const google = async (req, res, next) => {
             const newUser = new User({
                 username: req.body.name.split(" ").join("").toLowerCase() + Math.random().toString(36).slice(-4),
                 email: req.body.email,
-                password: hashedPassword
+                password: hashedPassword,
+                avatar: req.body.photo
             });
             await newUser.save();
             const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET);
