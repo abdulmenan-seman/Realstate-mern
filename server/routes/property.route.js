@@ -9,6 +9,7 @@ import {
     getPublicProperties,
     uploadImages,
     getRelatedProperties,
+    getOwnerStats,
 } from "../controllers/property.controller.js";
 import { verifyToken, optionalAuth } from "../middleware/auth.middleware.js";
 import { authorizeRoles } from "../middleware/authorize.middleware.js";
@@ -21,6 +22,7 @@ router.get("/", getPublicProperties);
 
 // Owner / Admin listing management
 router.get("/mine", verifyToken, authorizeRoles("owner", "admin"), getMyProperties);
+router.get("/owner/stats", verifyToken, authorizeRoles("owner", "admin"), getOwnerStats);
 
 router.post(
     "/upload-images",

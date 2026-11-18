@@ -1,4 +1,6 @@
 import Property from "../models/Property.model.js";
+import Inquiry from "../models/Inquiry.model.js";
+import Appointment from "../models/Appointment.model.js";
 import { errorHandler } from "../utils/error.js";
 import { uploadToCloudinary, deleteFromCloudinary } from "../config/cloudinary.js";
 
@@ -532,6 +534,70 @@ export const getRelatedProperties = async (req, res, next) => {
         res.status(200).json({
             success: true,
             data: related,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Retrieve aggregated dashboard stats for the authenticated owner
+export const getOwnerStats = async (req, res, next) => {
+    try {
+        const ownerId = req.user._id;
+
+        const [
+            totalListings,
+            pendingListings,
+            approvedListings,
+            rejectedListings,
+            availableListings,
+            rentedListings,
+            soldListings,
+            totalInquiries,
+            newInquiries,
+            totalAppointments,
+            pendingAppointments,
+        ] = await Promise.all([
+            Property.countDocuments({ owner: ownerId, isArchived: false }),
+            Property.countDocuments({ owner: ownerId, approvalStatus: "pending", isArchived: false }),
+            Property.countDocuments({ owner: ownerId, approvalStatus: "approved", isArchived: false }),
+            Property.countDocuments({ owner: ownerId, approvalStatus: "rejected", isArchived: false }),
+            Property.countDocuments({
+                owner: ownerId,
+                approvalStatus: "approved",
+                availabilityStatus: "available",
+                isArchived: false,
+            }),
+            Property.countDocuments({ owner: ownerId, availabilityStatus: "rented", isArchived: false }),
+            Property.countDocuments({ owner: ownerId, availabilityStatus: "sold", isArchived: false }),
+            Inquiry.countDocuments({ owner: ownerId }),
+            Inquiry.countDocuments({ owner: ownerId, status: "new" }),
+            Appointment.countDocuments({ owner: ownerId }),
+            Appointment.countDocuments({ owner: ownerId, status: "pending" }),
+        ]);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                listings: {
+                    total: totalListings,
+                    pending: pendingListings,
+                    approved: approvedListings,
+                    rejected: rejectedListings,
+                    available: availableListings,
+                    rentedOrSold: rentedListings + soldListings,
+                    rented: rentedListings,
+                    sold: soldListings,
+                },
+                inquiries: {
+                    total: totalInquiries,
+                    new: newInquiries,
+                },
+                appointments: {
+                    total: totalAppointments,
+                    pending: pendingAppointments,
+                },
+            },
         });
     } catch (error) {
         next(error);

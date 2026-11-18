@@ -4,12 +4,17 @@ import path from "path";
 import { fileURLToPath } from "url";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import connectDB from "./config/db.js";
 import userRoute from "./routes/User.route.js";
 import authRoute from "./routes/auth.route.js";
 import propertyRoute from "./routes/property.route.js";
 import adminRoute from "./routes/admin.route.js";
 import favoriteRoute from "./routes/favorite.route.js";
+import inquiryRoute from "./routes/inquiry.route.js";
+import appointmentRoute from "./routes/appointment.route.js";
+import reportRoute from "./routes/report.route.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,6 +27,13 @@ dotenv.config();
 connectDB();
 
 const app = express();
+
+// Security HTTP headers
+app.use(
+    helmet({
+        crossOriginResourcePolicy: { policy: "cross-origin" },
+    })
+);
 
 // Security and utility middlewares
 const clientUrls = [
@@ -46,8 +58,24 @@ app.use(
     })
 );
 
-app.use(express.json());
+// Body and cookie parsing with body size limits to prevent DoS
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
+
+// Rate limiting: protects API against abuse & brute-force attacks
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 2000, // Generous limit allowing test suites and active dashboard usage
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        statusCode: 429,
+        message: "Too many requests from this IP, please try again after 15 minutes.",
+    },
+});
+app.use("/api", apiLimiter);
 
 // Base health check
 app.get("/api/health", (req, res) => {
@@ -66,6 +94,9 @@ app.use("/api/user", userRoute); // Preserves backward compatibility
 app.use("/api/properties", propertyRoute);
 app.use("/api/admin", adminRoute);
 app.use("/api/favorites", favoriteRoute);
+app.use("/api/inquiries", inquiryRoute);
+app.use("/api/appointments", appointmentRoute);
+app.use("/api/reports", reportRoute);
 
 // Catch-all for unhandled routes
 app.use((req, res, next) => {

@@ -1,4 +1,8 @@
 import User from "../models/User.model.js";
+import Favorite from "../models/Favorite.model.js";
+import Inquiry from "../models/Inquiry.model.js";
+import Appointment from "../models/Appointment.model.js";
+import PropertyReport from "../models/PropertyReport.model.js";
 import { errorHandler } from "../utils/error.js";
 import bcrypt from "bcryptjs";
 
@@ -89,6 +93,42 @@ export const getPublicProfile = async (req, res, next) => {
         res.status(200).json({
             success: true,
             user,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Customer dashboard aggregated stats
+export const getCustomerStats = async (req, res, next) => {
+    try {
+        const userId = req.user.id || req.user._id;
+
+        const [
+            totalFavorites,
+            totalInquiries,
+            totalAppointments,
+            pendingAppointments,
+            totalReports,
+        ] = await Promise.all([
+            Favorite.countDocuments({ user: userId }),
+            Inquiry.countDocuments({ customer: userId }),
+            Appointment.countDocuments({ customer: userId }),
+            Appointment.countDocuments({ customer: userId, status: "pending" }),
+            PropertyReport.countDocuments({ reporter: userId }),
+        ]);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                favorites: totalFavorites,
+                inquiries: totalInquiries,
+                appointments: {
+                    total: totalAppointments,
+                    pending: pendingAppointments,
+                },
+                reports: totalReports,
+            },
         });
     } catch (error) {
         next(error);

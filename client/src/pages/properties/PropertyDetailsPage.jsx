@@ -25,6 +25,22 @@ export default function PropertyDetailsPage() {
     const [favoriteLoading, setFavoriteLoading] = useState(false);
     const [actionNotice, setActionNotice] = useState(null);
 
+    // Modals state
+    const [inquiryModalOpen, setInquiryModalOpen] = useState(false);
+    const [inquiryForm, setInquiryForm] = useState({ message: "", contactPhone: "" });
+    const [inquirySubmitting, setInquirySubmitting] = useState(false);
+    const [inquiryError, setInquiryError] = useState(null);
+
+    const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
+    const [appointmentForm, setAppointmentForm] = useState({ requestedDateTime: "", note: "" });
+    const [appointmentSubmitting, setAppointmentSubmitting] = useState(false);
+    const [appointmentError, setAppointmentError] = useState(null);
+
+    const [reportModalOpen, setReportModalOpen] = useState(false);
+    const [reportForm, setReportForm] = useState({ reason: "incorrect_information", description: "" });
+    const [reportSubmitting, setReportSubmitting] = useState(false);
+    const [reportError, setReportError] = useState(null);
+
     useEffect(() => {
         const fetchDetailsAndRelated = async () => {
             try {
@@ -35,7 +51,6 @@ export default function PropertyDetailsPage() {
                 if (res.success && res.property) {
                     setProperty(res.property);
 
-                    // Fetch favorite status if user is authenticated
                     if (currentUser) {
                         try {
                             const favRes = await apiClient.get(`/favorites/check/${id}`);
@@ -47,7 +62,6 @@ export default function PropertyDetailsPage() {
                         }
                     }
 
-                    // Fetch related listings
                     try {
                         const relRes = await apiClient.get(`/properties/${id}/related`);
                         if (relRes.success && Array.isArray(relRes.data)) {
@@ -92,6 +106,108 @@ export default function PropertyDetailsPage() {
         }
     };
 
+    // Customer Inquire Handler
+    const handleOpenInquiry = () => {
+        if (!currentUser) {
+            navigate("/signIn", { state: { from: location } });
+            return;
+        }
+        setInquiryError(null);
+        setInquiryForm({ message: "", contactPhone: currentUser.phone || "" });
+        setInquiryModalOpen(true);
+    };
+
+    const handleSubmitInquiry = async (e) => {
+        e.preventDefault();
+        try {
+            setInquirySubmitting(true);
+            setInquiryError(null);
+
+            const res = await apiClient.post("/inquiries", {
+                propertyId: id,
+                message: inquiryForm.message,
+                contactPhone: inquiryForm.contactPhone,
+            });
+
+            if (res.success) {
+                setInquiryModalOpen(false);
+                setActionNotice("Your inquiry has been sent to the property owner!");
+            }
+        } catch (err) {
+            setInquiryError(err.message || "Failed to submit inquiry.");
+        } finally {
+            setInquirySubmitting(false);
+        }
+    };
+
+    // Customer Appointment Handler
+    const handleOpenAppointment = () => {
+        if (!currentUser) {
+            navigate("/signIn", { state: { from: location } });
+            return;
+        }
+        setAppointmentError(null);
+        setAppointmentForm({ requestedDateTime: "", note: "" });
+        setAppointmentModalOpen(true);
+    };
+
+    const handleSubmitAppointment = async (e) => {
+        e.preventDefault();
+        try {
+            setAppointmentSubmitting(true);
+            setAppointmentError(null);
+
+            const res = await apiClient.post("/appointments", {
+                propertyId: id,
+                requestedDateTime: appointmentForm.requestedDateTime,
+                note: appointmentForm.note,
+            });
+
+            if (res.success) {
+                setAppointmentModalOpen(false);
+                setActionNotice("Viewing appointment requested! The owner will review your request.");
+            }
+        } catch (err) {
+            setAppointmentError(err.message || "Failed to request appointment.");
+        } finally {
+            setAppointmentSubmitting(false);
+        }
+    };
+
+    // Customer Report Handler
+    const handleOpenReport = () => {
+        if (!currentUser) {
+            navigate("/signIn", { state: { from: location } });
+            return;
+        }
+        setReportError(null);
+        setReportForm({ reason: "incorrect_information", description: "" });
+        setReportModalOpen(true);
+    };
+
+    const handleSubmitReport = async (e) => {
+        e.preventDefault();
+        try {
+            setReportSubmitting(true);
+            setReportError(null);
+
+            const res = await apiClient.post("/reports", {
+                propertyId: id,
+                reason: reportForm.reason,
+                description: reportForm.description,
+            });
+
+            if (res.success) {
+                setReportModalOpen(false);
+                setActionNotice("Thank you. Your report has been submitted to our moderation team.");
+            }
+        } catch (err) {
+            setReportError(err.message || "Failed to submit report.");
+        } finally {
+            setReportSubmitting(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="max-w-6xl mx-auto px-4 py-16">
@@ -120,6 +236,9 @@ export default function PropertyDetailsPage() {
         : [{ secureUrl: "https://via.placeholder.com/800x600?text=No+Photo" }];
 
     const activeImage = images[selectedImageIndex]?.secureUrl || images[0].secureUrl;
+
+    // Minimum date-time for appointment picker (1 hour from now in local timezone)
+    const minDateTime = new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16);
 
     return (
         <div className="max-w-6xl mx-auto px-4 py-8">
@@ -287,26 +406,33 @@ export default function PropertyDetailsPage() {
                             </div>
                         </div>
 
-                        {/* Inquire Actions */}
-                        <div className="flex flex-col gap-2">
+                        {/* Inquire & Appointment Buttons */}
+                        <div className="flex flex-col gap-2.5">
                             <Button
                                 variant="primary"
                                 className="w-full"
-                                onClick={() => {
-                                    alert(`Direct inquiry feature is launching in Phase 4! You will be able to message ${property.owner?.fullName || "the owner"} directly.`);
-                                }}
+                                onClick={handleOpenInquiry}
                             >
                                 ✉️ Send Inquiry to Owner
                             </Button>
                             <Button
                                 variant="outline"
                                 className="w-full"
-                                onClick={() => {
-                                    alert("Viewing appointment scheduling is launching in Phase 4! You will be able to book in-person viewings.");
-                                }}
+                                onClick={handleOpenAppointment}
                             >
-                                📅 Schedule Viewing Appointment
+                                📅 Request Viewing Appointment
                             </Button>
+                        </div>
+
+                        {/* Report listing button */}
+                        <div className="mt-4 pt-3 border-t border-slate-100 text-center">
+                            <button
+                                type="button"
+                                onClick={handleOpenReport}
+                                className="text-xs text-slate-400 hover:text-red-600 transition-colors"
+                            >
+                                🚩 Report this property listing
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -320,6 +446,217 @@ export default function PropertyDetailsPage() {
                         {relatedProperties.map((rel) => (
                             <PropertyCard key={rel._id} property={rel} />
                         ))}
+                    </div>
+                </div>
+            )}
+
+            {/* ----------------- MODALS ----------------- */}
+
+            {/* 1. Send Inquiry Modal */}
+            {inquiryModalOpen && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                            <h2 className="text-lg font-bold text-slate-800">Send Inquiry to Owner</h2>
+                            <button
+                                onClick={() => setInquiryModalOpen(false)}
+                                className="text-slate-400 hover:text-slate-600 text-2xl font-bold"
+                            >
+                                &times;
+                            </button>
+                        </div>
+
+                        {inquiryError && (
+                            <div className="mb-4">
+                                <Alert type="error" message={inquiryError} />
+                            </div>
+                        )}
+
+                        <form onSubmit={handleSubmitInquiry} className="flex flex-col gap-4">
+                            <div>
+                                <label className="text-xs font-bold text-slate-600 uppercase">Your Message *</label>
+                                <textarea
+                                    rows={4}
+                                    required
+                                    placeholder="Hi, I am interested in this property. Is it still available and when could I schedule a visit?"
+                                    value={inquiryForm.message}
+                                    onChange={(e) => setInquiryForm({ ...inquiryForm, message: e.target.value })}
+                                    className="w-full text-sm border border-slate-300 rounded-lg p-3 mt-1 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-slate-600 uppercase">Contact Phone (Optional)</label>
+                                <input
+                                    type="tel"
+                                    placeholder="+1 (555) 000-0000"
+                                    value={inquiryForm.contactPhone}
+                                    onChange={(e) => setInquiryForm({ ...inquiryForm, contactPhone: e.target.value })}
+                                    className="w-full text-sm border border-slate-300 rounded-lg p-2.5 mt-1 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                />
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setInquiryModalOpen(false)}
+                                    disabled={inquirySubmitting}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    variant="primary"
+                                    loading={inquirySubmitting}
+                                    disabled={inquirySubmitting}
+                                >
+                                    {inquirySubmitting ? "Sending..." : "Send Inquiry"}
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* 2. Request Viewing Appointment Modal */}
+            {appointmentModalOpen && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                            <h2 className="text-lg font-bold text-slate-800">Schedule Viewing Appointment</h2>
+                            <button
+                                onClick={() => setAppointmentModalOpen(false)}
+                                className="text-slate-400 hover:text-slate-600 text-2xl font-bold"
+                            >
+                                &times;
+                            </button>
+                        </div>
+
+                        {appointmentError && (
+                            <div className="mb-4">
+                                <Alert type="error" message={appointmentError} />
+                            </div>
+                        )}
+
+                        <form onSubmit={handleSubmitAppointment} className="flex flex-col gap-4">
+                            <div>
+                                <label className="text-xs font-bold text-slate-600 uppercase">Preferred Date & Time *</label>
+                                <input
+                                    type="datetime-local"
+                                    required
+                                    min={minDateTime}
+                                    value={appointmentForm.requestedDateTime}
+                                    onChange={(e) => setAppointmentForm({ ...appointmentForm, requestedDateTime: e.target.value })}
+                                    className="w-full text-sm border border-slate-300 rounded-lg p-2.5 mt-1 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                />
+                                <span className="text-[11px] text-slate-400 mt-0.5 block">Select a convenient future date and time for an in-person viewing.</span>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-slate-600 uppercase">Optional Note for Owner</label>
+                                <textarea
+                                    rows={3}
+                                    placeholder="e.g. Coming with my spouse; would love to see the balcony and basement storage."
+                                    value={appointmentForm.note}
+                                    onChange={(e) => setAppointmentForm({ ...appointmentForm, note: e.target.value })}
+                                    className="w-full text-sm border border-slate-300 rounded-lg p-3 mt-1 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                />
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setAppointmentModalOpen(false)}
+                                    disabled={appointmentSubmitting}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    variant="primary"
+                                    loading={appointmentSubmitting}
+                                    disabled={appointmentSubmitting}
+                                >
+                                    {appointmentSubmitting ? "Requesting..." : "Request Appointment"}
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* 3. Report Listing Modal */}
+            {reportModalOpen && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                            <h2 className="text-lg font-bold text-slate-800">Report This Listing</h2>
+                            <button
+                                onClick={() => setReportModalOpen(false)}
+                                className="text-slate-400 hover:text-slate-600 text-2xl font-bold"
+                            >
+                                &times;
+                            </button>
+                        </div>
+
+                        <p className="text-xs text-slate-500 mb-4">
+                            Our team investigates all reported properties to ensure marketplace safety and accuracy.
+                        </p>
+
+                        {reportError && (
+                            <div className="mb-4">
+                                <Alert type="error" message={reportError} />
+                            </div>
+                        )}
+
+                        <form onSubmit={handleSubmitReport} className="flex flex-col gap-4">
+                            <div>
+                                <label className="text-xs font-bold text-slate-600 uppercase">Reason for Report *</label>
+                                <select
+                                    value={reportForm.reason}
+                                    onChange={(e) => setReportForm({ ...reportForm, reason: e.target.value })}
+                                    className="w-full text-sm border border-slate-300 rounded-lg p-2.5 mt-1 bg-white focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                >
+                                    <option value="incorrect_information">Incorrect Information / Photos</option>
+                                    <option value="suspicious_listing">Suspicious or Fraudulent Listing</option>
+                                    <option value="duplicate_listing">Duplicate Listing</option>
+                                    <option value="inappropriate_content">Inappropriate Content</option>
+                                    <option value="other">Other Concern</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-slate-600 uppercase">Explanation (Optional)</label>
+                                <textarea
+                                    rows={3}
+                                    placeholder="Provide any additional details or context for our moderators..."
+                                    value={reportForm.description}
+                                    onChange={(e) => setReportForm({ ...reportForm, description: e.target.value })}
+                                    className="w-full text-sm border border-slate-300 rounded-lg p-3 mt-1 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                />
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setReportModalOpen(false)}
+                                    disabled={reportSubmitting}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    variant="danger"
+                                    loading={reportSubmitting}
+                                    disabled={reportSubmitting}
+                                >
+                                    {reportSubmitting ? "Submitting..." : "Submit Report"}
+                                </Button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

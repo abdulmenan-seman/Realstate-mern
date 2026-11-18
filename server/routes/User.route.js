@@ -4,6 +4,7 @@ import {
     getProfile,
     updateProfile,
     getPublicProfile,
+    getCustomerStats,
 } from "../controllers/User.controller.js";
 import { verifyToken } from "../middleware/auth.middleware.js";
 import { authorizeRoles } from "../middleware/authorize.middleware.js";
@@ -15,6 +16,9 @@ router.get("/test", test);
 router.get("/me", verifyToken, getProfile);
 router.patch("/me", verifyToken, validateProfileUpdate, updateProfile);
 router.put("/me", verifyToken, validateProfileUpdate, updateProfile);
+
+// Customer stats
+router.get("/customer/stats", verifyToken, getCustomerStats);
 
 // Role authorization verification endpoints
 router.get("/owner-only", verifyToken, authorizeRoles("owner", "admin"), (req, res) => {
